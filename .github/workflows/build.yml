@@ -37,7 +37,7 @@ jobs:
           cp src/jit/*.lua dist/jit/
           
           cd dist
-          powershell Compress-Archive -Path * -DestinationPath ../LuaJIT-32bit-AviUtl.zip
+          powershell "Compress-Archive -Path jit, lua51.dll -DestinationPath ../LuaJIT-32bit-AviUtl.zip"
 
       - name: Generate Release Tag
         id: tag
