@@ -1,0 +1,67 @@
+name: Build and Release LuaJIT for AviUtl (Weekly)
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout LuaJIT repository
+        uses: actions/checkout@v4
+        with:
+          repository: LuaJIT/LuaJIT
+          ref: v2.1
+
+      - name: Set up Developer Command Prompt for Microsoft Visual Studio
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Build LuaJIT
+        shell: cmd
+        run: |
+          cd src
+          msvcbuild.bat amalg lj_vm.obj CFLAGS="/DLUAJIT_ENABLE_LUA52COMPAT"
+
+      - name: Prepare Artifacts
+        shell: bash
+        run: |
+          mkdir -p dist/jit
+          cp src/lua51.dll dist/
+          cp src/jit/*.lua dist/jit/
+          
+          cd dist
+          powershell Compress-Archive -Path * -DestinationPath ../LuaJIT-32bit-AviUtl.zip
+
+      - name: Generate Release Tag
+        id: tag
+        shell: bash
+        run: |
+          echo "release_tag=v$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          name: LuaJIT for AviUtl (${{ steps.tag.outputs.release_tag }})
+          body: |
+            毎週の自動更新ビルドです。
+            
+            **仕様:**
+            - 32bit (x86) ビルド
+            - `amalg` (全結合最適化) 有効
+            - `LUAJIT_ENABLE_LUA52COMPAT` (Lua 5.2互換フラグ) 有効
+            
+            **導入方法:**
+            ZIPを解凍し、中身（`lua51.dll` と `jit` フォルダ）をAviUtl本体のフォルダへ配置してください。
+          draft: false
+          prerelease: false
+          files: LuaJIT-32bit-AviUtl.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
